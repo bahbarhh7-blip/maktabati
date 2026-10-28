@@ -1,0 +1,1 @@
+ALTER TABLE `ijazah_records` MODIFY COLUMN `bookId` varchar(36);
