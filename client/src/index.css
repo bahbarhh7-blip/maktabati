@@ -343,3 +343,9 @@ body{font-size:15px}
 
 /* Guest preview */
 .guest-entry{display:grid;gap:9px;margin-top:16px;padding-top:15px;border-top:1px solid var(--line);text-align:center}.guest-entry>span{font-size:11px;line-height:1.65;color:var(--muted)}.guest-entry .outline-button{width:100%;min-height:44px;color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,var(--line2))}.guest-preview-banner{width:min(100% - 36px,1120px);margin:14px auto 0;padding:11px 14px;border:1px solid #10b98144;border-radius:12px;background:#10b9810d;color:var(--muted);font-size:12px;line-height:1.6}.guest-mode-pill{display:inline-flex;align-items:center;padding:5px 10px;border:1px solid #10b98144;border-radius:999px;color:#34d399;background:#10b98112;font-size:11px;font-weight:700;white-space:nowrap}.guest-exit{white-space:nowrap;color:var(--muted)}
+
+/* نافذة تعديل الكتاب تملأ الشاشة كاملة على الجوال */
+@media(max-width:760px){
+  .modal-backdrop:has(.book-modal){padding:0;place-items:stretch}
+  .modal.book-modal{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
+}
