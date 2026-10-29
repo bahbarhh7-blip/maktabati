@@ -157,10 +157,13 @@ export default function Home() {
   useEffect(() => {
     if (guestPreview || !offlineAccount || actualUser || !online) return;
     setSyncState("error");
-    setSyncNote("تعذر التحقق من الجلسة السحابية مؤقتاً؛ مكتبتك محفوظة محلياً وجارٍ إعادة الاتصال.");
+    setSyncNote("الخادم المجاني يستيقظ وقد يستغرق دقيقة؛ مكتبتك محفوظة محلياً وجارٍ إعادة الاتصال.");
     const timer = window.setInterval(() => { void auth.refetch(); }, 5000);
     return () => window.clearInterval(timer);
   }, [offlineAccount?.id, actualUser?.id, online, auth.refetch]);
+  useEffect(() => {
+    if (actualUser) setSyncNote(note => note.startsWith("الخادم المجاني يستيقظ") ? "" : note);
+  }, [actualUser?.id]);
   useEffect(() => {
     if (!currentUser || currentUser.id === loadedAccount.current) return;
     loadedAccount.current = currentUser.id; setPreferencesAccount(null); setListsAccount(null); selectLocalAccount(currentUser.id);
