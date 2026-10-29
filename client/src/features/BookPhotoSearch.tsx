@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera, Check, Image as ImageIcon, LoaderCircle, Search, X } from "lucide-react";
 import type { Book } from "@/lib/models";
 import { moduleInfo } from "@/lib/models";
@@ -23,6 +24,8 @@ type Props = {
   onOpenBook: (book: Book) => void;
   onUseCandidate: (candidate: ExternalBookCandidate) => void;
 };
+
+const normalizeText = (value: string) => value.toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").trim();
 
 const hashCache = new Map<string, string>();
 
@@ -104,6 +107,7 @@ export default function BookPhotoSearch({ books, language, onOpenBook, onUseCand
   const [lookupBusy, setLookupBusy] = useState(false);
   const [results, setResults] = useState<ExternalBookCandidate[]>([]);
   const [notice, setNotice] = useState("");
+  const [query, setQuery] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
 
@@ -212,12 +216,22 @@ export default function BookPhotoSearch({ books, language, onOpenBook, onUseCand
     }
   };
 
+  const queryTokens = normalizeText(query).split(/\s+/).filter(Boolean);
+  const textMatches = queryTokens.length ? books.filter(book => {
+    if (book.deleted) return false;
+    const haystack = normalizeText([book.title, book.author, book.subject, book.publisher, book.editor, book.notes, book.number, book.location, book.room, book.cabinet, book.shelf].join(" "));
+    return queryTokens.every(token => haystack.includes(token));
+  }).slice(0, 30) : [];
+
   return <>
-    <button type="button" className="icon-button photo-search-trigger" onClick={() => setOpen(true)} title={translate("البحث بصورة غلاف", language)} aria-label={translate("البحث بصورة غلاف", language)}><ImageIcon size={18} /><span>{translate("بالصورة", language)}</span></button>
-    {open && <div className="modal-backdrop photo-search-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
+    <button type="button" className="icon-button photo-search-trigger" onClick={() => setOpen(true)} title={translate("بحث", language)} aria-label={translate("بحث", language)}><Search size={18} /><span>{translate("بحث", language)}</span></button>
+    {open && createPortal(<div className="modal-backdrop photo-search-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section className="modal photo-search-modal" role="dialog" aria-modal="true" aria-labelledby="photo-search-title">
-        <header className="modal-heading"><div className="photo-search-heading-icon"><ImageIcon size={20} /></div><div><h2 id="photo-search-title">{translate("البحث عن كتاب بالصورة", language)}</h2><p>{translate("قارن الغلاف مع كتبك، أو استخرج نصه للبحث عن بياناته.", language)}</p></div><button className="icon-button" onClick={() => setOpen(false)} aria-label={translate("إغلاق", language)}><X size={18} /></button></header>
+        <header className="modal-heading"><div className="photo-search-heading-icon"><ImageIcon size={20} /></div><div><h2 id="photo-search-title">{translate("البحث", language)}</h2><p>{translate("ابحث في كتبك بالكتابة، أو بصورة الغلاف.", language)}</p></div><button className="icon-button" onClick={() => setOpen(false)} aria-label={translate("إغلاق", language)}><X size={18} /></button></header>
         <div className="photo-search-body">
+          <div className="global-search-field"><Search size={18} /><input autoFocus type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={translate("ابحث بالعنوان أو المؤلف أو العلم...", language)} /></div>
+          {queryTokens.length > 0 && <div className="global-search-results">{textMatches.length ? textMatches.map(book => <button type="button" key={book.id} onClick={() => { setOpen(false); onOpenBook(book); }}><b>{book.title}</b><small>{[book.author, book.subject].filter(Boolean).join(" · ")}</small></button>) : <small>{translate("لا توجد نتائج مطابقة.", language)}</small>}</div>}
+          <div className="global-search-divider">{translate("أو ابحث بصورة الغلاف", language)}</div>
           <div className="photo-search-inputs"><input ref={fileInput} hidden type="file" accept="image/*" onChange={event => { void chooseImage(event.target.files?.[0]); event.target.value = ""; }} /><input ref={cameraInput} hidden type="file" accept="image/*" capture="environment" onChange={event => { void chooseImage(event.target.files?.[0]); event.target.value = ""; }} />
             <button type="button" className="outline-button" onClick={() => fileInput.current?.click()}><ImageIcon size={16} />{translate("اختر صورة من الجهاز", language)}</button><button type="button" className="outline-button" onClick={() => cameraInput.current?.click()}><Camera size={16} />{translate("صوّر الغلاف", language)}</button>
           </div>
@@ -236,6 +250,6 @@ export default function BookPhotoSearch({ books, language, onOpenBook, onUseCand
           <p className="photo-search-footnote">{translate("يمكن استخدام مطابقة صورك دون اتصال. البحث الخارجي في Google Books يحتاج اتصالاً بالإنترنت.", language)}</p>
         </div>
       </section>
-    </div>}
+    </div>, document.body)}
   </>;
 }
