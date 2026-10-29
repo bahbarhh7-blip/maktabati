@@ -152,33 +152,41 @@ export default function BookPhotoSearch({ books, language, onOpenBook, onUseCand
     }
   };
 
+  const recognizeText = async (useLocalFiles: boolean) => {
+    const { createWorker } = await import("tesseract.js");
+    const logger = (message: { progress?: number }) => {
+      if (typeof message.progress === "number") setOcrProgress(Math.round(message.progress * 100));
+    };
+    const worker = useLocalFiles
+      ? await createWorker(["ara", "eng"], 1, { workerPath: "/ocr/worker.min.js", corePath: "/ocr", langPath: "/ocr/tessdata", gzip: true, cacheMethod: "write", logger })
+      : await createWorker(["ara", "eng"], 1, { logger });
+    try {
+      const recognized = await worker.recognize(photo);
+      return recognized.data.text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 1).slice(0, 16).join("\n").slice(0, 1200);
+    } finally {
+      await worker.terminate();
+    }
+  };
+
   const runOcr = async () => {
     if (!photo) return;
     setOcrBusy(true);
     setOcrProgress(0);
     setNotice("");
     try {
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker(["ara", "eng"], 1, {
-        workerPath: "/ocr/worker.min.js",
-        corePath: "/ocr",
-        langPath: "/ocr/tessdata",
-        gzip: true,
-        cacheMethod: "write",
-        logger: message => {
-          if (typeof message.progress === "number") setOcrProgress(Math.round(message.progress * 100));
-        },
-      });
+      let cleanText = "";
       try {
-        const recognized = await worker.recognize(photo);
-        const cleanText = recognized.data.text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 1).slice(0, 16).join("\n").slice(0, 1200);
-        setOcrText(cleanText);
-        if (!cleanText) setNotice(translate("لم أستطع قراءة عنوان واضح. جرّب تصوير الغلاف بإضاءة جيدة ومن الأمام.", language));
-      } finally {
-        await worker.terminate();
+        cleanText = await recognizeText(true);
+      } catch (localError) {
+        console.warn("Local OCR failed, trying online files", localError);
+        setOcrProgress(0);
+        cleanText = await recognizeText(false);
       }
-    } catch {
-      setNotice(translate("تعذرت تهيئة قراءة الصورة. اتصل بالإنترنت مرة لتنزيل ملفات OCR ثم أعد المحاولة دون اتصال.", language));
+      setOcrText(cleanText);
+      if (!cleanText) setNotice(translate("لم أستطع قراءة عنوان واضح. جرّب تصوير الغلاف بإضاءة جيدة ومن الأمام.", language));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setNotice(`${translate("تعذرت تهيئة قراءة الصورة. اتصل بالإنترنت مرة لتنزيل ملفات OCR ثم أعد المحاولة دون اتصال.", language)} (${detail.slice(0, 140)})`);
     } finally {
       setOcrBusy(false);
     }
